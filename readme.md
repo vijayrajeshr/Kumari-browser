@@ -39,7 +39,7 @@ The goal is a fast, responsive Android or Flutter WebView browser with rich read
 ## Open Source Project
 This project is **open source** and welcomes contributions from developers interested in enhancing reading experiences in mobile browsers. Contributions, suggestions, and feature requests are encouraged through GitHub Pull Requests and Issues.
 
-**License:** MIT License (or specify your preferred open source license).
+**License:** MIT License
 
 ---
 
@@ -50,3 +50,4 @@ This project is **open source** and welcomes contributions from developers inter
 ---
 
 This project focuses on rapid development with high functionality and a beautiful user interface using well-established open-source libraries.
+
