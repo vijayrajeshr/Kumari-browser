@@ -36,11 +36,17 @@ The goal is a fast, responsive Android or Flutter WebView browser with rich read
 - Maintain clean, reusable UI code with SaltUI.
 - Leverage EinkBro's browser engine for reliable performance.
 
+## Open Source Project
+This project is **open source** and welcomes contributions from developers interested in enhancing reading experiences in mobile browsers. Contributions, suggestions, and feature requests are encouraged through GitHub Pull Requests and Issues.
+
+**License:** MIT License (or specify your preferred open source license).
+
+---
+
 ## References
 - SaltUI: https://github.com/Moriafly/SaltUI
 - EinkBro: https://github.com/plateaukao/einkbro
 
 ---
 
-This project is focused on rapid development with high functionality and a beautiful user interface using already available open-source libraries.
-
+This project focuses on rapid development with high functionality and a beautiful user interface using well-established open-source libraries.
