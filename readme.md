@@ -1,4 +1,4 @@
-# Simple WebView Browser with SaltUI and EinkBro
+# Project K
 
 ## Project Overview
 This project aims to create a **simple, highly functional web browser** with enhanced reading features. It integrates two open-source libraries:
@@ -50,4 +50,5 @@ This project is **open source** and welcomes contributions from developers inter
 ---
 
 This project focuses on rapid development with high functionality and a beautiful user interface using well-established open-source libraries.
+
 
