@@ -122,6 +122,12 @@ const loadingIndicator = document.getElementById('loadingIndicator');
 const articleTitle = document.getElementById('articleTitle');
 const articleMeta = document.getElementById('articleMeta');
 const articleBody = document.getElementById('articleBody');
+const homeBtn = document.getElementById('homeBtn');
+const noteBtn = document.getElementById('noteBtn');
+const noteModal = document.getElementById('noteModal');
+const noteCloseBtn = document.getElementById('noteCloseBtn');
+const noteTextarea = document.getElementById('noteTextarea');
+const googleSearchBtn = document.getElementById('googleSearchBtn');
 
 // Utility Functions
 function isValidUrl(string) {
@@ -139,6 +145,9 @@ function isValidUrl(string) {
     return false;
   }
 }
+
+// Simplified: No proxy for now - focus on UI
+// Sites that work in iframes will work, others will show helpful message
 
 function sanitizeUrl(input) {
   input = input.trim();
@@ -230,9 +239,12 @@ function createTabIframe(tab) {
   iframe.style.width = '100%';
   iframe.style.height = '100%';
   iframe.style.border = 'none';
-  // Note: Some sites block iframe embedding via X-Frame-Options or CSP
-  // This is a security feature and cannot be bypassed in a web browser
+  // Configure iframe for maximum compatibility with proxied content
+  // Using minimal sandbox to allow proxied sites to work
   iframe.sandbox = 'allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation allow-popups-to-escape-sandbox';
+  iframe.setAttribute('allow', 'fullscreen');
+  iframe.setAttribute('allowfullscreen', 'true');
+  iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
   iframe.style.display = 'none';
   
   let loadTimeout = null;
@@ -248,12 +260,10 @@ function createTabIframe(tab) {
     
     hideLoading();
     
-    // Check if iframe actually loaded content or was blocked
-    // Use a message-based approach to detect if iframe is accessible
+    // Check if iframe actually loaded content
     setTimeout(() => {
       try {
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        const iframeWindow = iframe.contentWindow;
         
         // Check if we can access the document
         if (iframeDoc && iframeDoc.body) {
@@ -268,54 +278,36 @@ function createTabIframe(tab) {
         }
       } catch (e) {
         // CORS error - can't access iframe content
-        // This could mean:
-        // 1. Site loaded but blocks cross-origin access (still works visually)
-        // 2. Site blocked iframe embedding (X-Frame-Options)
-        // We'll assume it's working if no error is thrown by the browser
+        // This is okay - page may still be visible, just can't access it
       }
       
-      // If we get here, check if iframe src is set and try to determine status
+      // If we get here, try to get URL info
       try {
         const url = new URL(iframe.src);
-        
-        // Try to access iframe window properties (less restricted)
+        // Try to access iframe window (less restricted)
         try {
           const iframeWindow = iframe.contentWindow;
-          if (iframeWindow && iframeWindow.location) {
-            // Can access window - likely loaded but CORS blocks document access
-            // This is fine, the page should still display
+          if (iframeWindow) {
+            // Can access window - page likely loaded
             hideError();
             browserState.updateTabTitle(tab.id, url.hostname);
             updateTabBar();
             return;
           }
         } catch (e) {
-          // Cannot access window - likely blocked by X-Frame-Options
+          // Cannot access - might be blocked
         }
         
-        // Final check: wait a bit and see if error persists
-        setTimeout(() => {
-          // If error is still showing, the site is likely blocked
-          if (errorMessage.style.display === 'flex') {
-            // Don't change error if it's already showing
-            return;
-          }
-          
-          // Try one more time to access
-          try {
-            const iframeDoc = iframe.contentDocument;
-            if (!iframeDoc || !iframeDoc.body) {
-              showError(`This website (${url.hostname}) blocks embedding in iframes for security reasons. Click "Open in New Window" to view it.`, iframe.src);
-            }
-          } catch (e2) {
-            // Site is blocked - show error with helpful message
-            showError(`This website (${url.hostname}) blocks embedding in iframes for security reasons. Click "Open in New Window" to view it.`, iframe.src);
-          }
-        }, 2000);
+        // If we can't access anything, assume it loaded but is blocked
+        // Don't show error immediately - let user see if content appears
+        hideError();
+        browserState.updateTabTitle(tab.id, url.hostname);
+        updateTabBar();
       } catch (e2) {
-        showError('Failed to load this page. The website may block embedding in iframes.', iframe.src);
+        // Invalid URL or other error
+        hideError();
       }
-    }, 500);
+    }, 300);
   });
   
   // Handle iframe errors
@@ -493,7 +485,7 @@ function navigateToUrl(url) {
     tab.iframe._startLoadTimeout(sanitizedUrl);
   }
   
-  // Load URL in iframe
+  // Simple direct loading - no proxy complexity
   try {
     tab.iframe.src = sanitizedUrl;
   } catch (e) {
@@ -504,21 +496,33 @@ function navigateToUrl(url) {
 
 function goBack() {
   const tab = browserState.getActiveTab();
-  if (!tab || !tab.iframe) return;
+  if (!tab) return;
   
   if (browserState.canGoBack(tab.id)) {
     const url = browserState.goBack(tab.id);
-    if (url) {
+    if (url && tab.iframe) {
       showLoading();
       tab.iframe.src = url;
       browserState.updateTabUrl(tab.id, url);
       addressBar.value = url;
       updateNavButtons();
     }
-  } else {
+  } else if (tab.iframe) {
     // Try iframe's native history
     try {
       tab.iframe.contentWindow.history.back();
+      // Update address bar after a delay
+      setTimeout(() => {
+        if (tab.iframe && tab.iframe.contentWindow) {
+          try {
+            const iframeUrl = tab.iframe.contentWindow.location.href;
+            addressBar.value = iframeUrl;
+            browserState.updateTabUrl(tab.id, iframeUrl);
+          } catch (e) {
+            // CORS - can't access
+          }
+        }
+      }, 100);
     } catch (e) {
       // CORS error
     }
@@ -527,21 +531,33 @@ function goBack() {
 
 function goForward() {
   const tab = browserState.getActiveTab();
-  if (!tab || !tab.iframe) return;
+  if (!tab) return;
   
   if (browserState.canGoForward(tab.id)) {
     const url = browserState.goForward(tab.id);
-    if (url) {
+    if (url && tab.iframe) {
       showLoading();
       tab.iframe.src = url;
       browserState.updateTabUrl(tab.id, url);
       addressBar.value = url;
       updateNavButtons();
     }
-  } else {
+  } else if (tab.iframe) {
     // Try iframe's native history
     try {
       tab.iframe.contentWindow.history.forward();
+      // Update address bar after a delay
+      setTimeout(() => {
+        if (tab.iframe && tab.iframe.contentWindow) {
+          try {
+            const iframeUrl = tab.iframe.contentWindow.location.href;
+            addressBar.value = iframeUrl;
+            browserState.updateTabUrl(tab.id, iframeUrl);
+          } catch (e) {
+            // CORS - can't access
+          }
+        }
+      }, 100);
     } catch (e) {
       // CORS error
     }
@@ -556,7 +572,7 @@ function reload() {
   tab.iframe.src = tab.iframe.src; // Reload iframe
 }
 
-// Reading Mode Functions
+// Reading Mode Functions - Fixed for CORS
 function extractArticleContent() {
   const tab = browserState.getActiveTab();
   if (!tab || !tab.iframe) {
@@ -564,7 +580,25 @@ function extractArticleContent() {
   }
   
   try {
-    const iframeDoc = tab.iframe.contentDocument || tab.iframe.contentWindow.document;
+    // Try to access iframe document
+    const iframe = tab.iframe;
+    let iframeDoc;
+    
+    try {
+      iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    } catch (e) {
+      // CORS error - try alternative method
+      return {
+        title: 'Content Unavailable',
+        byline: '',
+        content: '<p>This page cannot be displayed in reading mode because it blocks cross-origin access. This is a security feature of the website.</p><p>Try navigating to a page that allows iframe embedding, or use the "Open in New Window" option.</p>',
+        textContent: 'Content unavailable due to security restrictions.'
+      };
+    }
+    
+    if (!iframeDoc || !iframeDoc.body) {
+      return null;
+    }
     
     // Try to find article element
     let article = iframeDoc.querySelector('article');
@@ -577,10 +611,10 @@ function extractArticleContent() {
       article = iframeDoc.querySelector('[role="main"]');
     }
     if (!article) {
-      article = iframeDoc.querySelector('.content, #content, .post, .entry');
+      article = iframeDoc.querySelector('.content, #content, .post, .entry, .article, .post-content');
     }
     
-    // Last resort: use body
+    // Last resort: use body but filter better
     if (!article) {
       article = iframeDoc.body;
     }
@@ -592,34 +626,47 @@ function extractArticleContent() {
     // Clone the article to avoid modifying original
     const clone = article.cloneNode(true);
     
-    // Remove unwanted elements
+    // Remove unwanted elements more aggressively
     const unwantedSelectors = [
       'script', 'style', 'nav', 'header', 'footer', 
-      '.ad', '.advertisement', '.ads', '[class*="ad-"]',
-      '.sidebar', '.social', '.share', '.comments',
-      '.menu', '.navigation', 'iframe', 'noscript'
+      '.ad', '.advertisement', '.ads', '[class*="ad-"]', '[id*="ad-"]',
+      '.sidebar', '.social', '.share', '.comments', '.comment',
+      '.menu', '.navigation', 'iframe', 'noscript', '.cookie',
+      '.newsletter', '.subscribe', '.related', '.recommended',
+      'aside', '[role="complementary"]', '.widget', '.sidebar-widget'
     ];
     
     unwantedSelectors.forEach(selector => {
-      clone.querySelectorAll(selector).forEach(el => el.remove());
+      try {
+        clone.querySelectorAll(selector).forEach(el => el.remove());
+      } catch (e) {
+        // Ignore errors
+      }
     });
     
     // Extract title
     let title = iframeDoc.title || '';
-    const titleEl = iframeDoc.querySelector('h1, .title, .post-title, .entry-title');
+    const titleEl = iframeDoc.querySelector('h1, .title, .post-title, .entry-title, article h1');
     if (titleEl) {
       title = titleEl.textContent.trim();
     }
     
     // Extract byline/author
     let byline = '';
-    const bylineEl = iframeDoc.querySelector('.byline, .author, [rel="author"], .meta-author');
+    const bylineEl = iframeDoc.querySelector('.byline, .author, [rel="author"], .meta-author, .post-author');
     if (bylineEl) {
       byline = bylineEl.textContent.trim();
     }
     
     // Get text content for reading time calculation
     const textContent = clone.textContent || '';
+    
+    // Clean up HTML - remove empty elements
+    clone.querySelectorAll('*').forEach(el => {
+      if (el.children.length === 0 && el.textContent.trim() === '') {
+        el.remove();
+      }
+    });
     
     return {
       title: title || 'Untitled Article',
@@ -628,22 +675,28 @@ function extractArticleContent() {
       textContent: textContent
     };
   } catch (e) {
-    // CORS error - can't access iframe content
-    console.error('Cannot extract content due to CORS:', e);
+    // CORS error or other issue
+    console.error('Cannot extract content:', e);
     return {
       title: 'Content Unavailable',
       byline: '',
-      content: '<p>This page cannot be displayed in reading mode because it blocks cross-origin access. This is a security feature of the website.</p>',
+      content: '<p>This page cannot be displayed in reading mode because it blocks cross-origin access. This is a security feature of the website.</p><p>Try navigating to a page that allows iframe embedding, or use the "Open in New Window" option.</p>',
       textContent: 'Content unavailable due to security restrictions.'
     };
   }
 }
 
 function enterReadingMode() {
+  const tab = browserState.getActiveTab();
+  if (!tab || !tab.iframe) {
+    alert('No page loaded. Please navigate to a page first.');
+    return;
+  }
+  
   const article = extractArticleContent();
   
   if (!article) {
-    alert('Unable to extract article content from this page.');
+    alert('Unable to extract article content from this page. The page may block cross-origin access.');
     return;
   }
   
@@ -652,14 +705,16 @@ function enterReadingMode() {
 }
 
 function displayArticle(article) {
+  if (!articleTitle || !articleMeta || !articleBody) return;
+  
   articleTitle.textContent = article.title || 'Untitled';
   
-  const wordCount = article.textContent ? article.textContent.split(/\s+/).length : 0;
-  const readingTime = Math.ceil(wordCount / 200);
+  const wordCount = article.textContent ? article.textContent.split(/\s+/).filter(w => w.length > 0).length : 0;
+  const readingTime = Math.max(1, Math.ceil(wordCount / 200));
   
   let metaText = '';
   if (article.byline) {
-    metaText += `By ${article.byline} • `;
+    metaText += `${article.byline} • `;
   }
   metaText += `${readingTime} min read`;
   
@@ -674,8 +729,13 @@ function displayArticle(article) {
   setTextSize(parseInt(currentSize));
   
   // Set initial line spacing
-  const currentSpacing = articleBody.dataset.currentSpacing || '1';
+  const currentSpacing = articleBody.dataset.currentSpacing || '1.6';
   setLineSpacing(parseFloat(currentSpacing));
+  
+  // Update active button states
+  document.querySelectorAll('.spacing-btn').forEach(btn => {
+    btn.classList.toggle('active', parseFloat(btn.dataset.spacing) === parseFloat(currentSpacing));
+  });
 }
 
 function exitReadingMode() {
@@ -692,6 +752,8 @@ function toggleReadingTheme() {
 }
 
 function setTextSize(size) {
+  if (!articleBody) return;
+  
   articleBody.style.fontSize = `${size}px`;
   
   document.querySelectorAll('.text-size-btn').forEach(btn => {
@@ -699,12 +761,12 @@ function setTextSize(size) {
   });
   
   // Store current size for persistence
-  if (articleBody) {
-    articleBody.dataset.currentSize = size;
-  }
+  articleBody.dataset.currentSize = size;
 }
 
 function setLineSpacing(spacing) {
+  if (!articleBody) return;
+  
   articleBody.style.lineHeight = `${spacing}`;
   
   document.querySelectorAll('.spacing-btn').forEach(btn => {
@@ -712,9 +774,7 @@ function setLineSpacing(spacing) {
   });
   
   // Store current spacing for persistence
-  if (articleBody) {
-    articleBody.dataset.currentSpacing = spacing;
-  }
+  articleBody.dataset.currentSpacing = spacing;
 }
 
 // Event Listeners
@@ -767,6 +827,44 @@ if (retryBtn) {
   });
 }
 
+// Home Button Functionality
+function goHome() {
+  const tab = browserState.getActiveTab();
+  if (tab && tab.iframe) {
+    tab.iframe.style.display = 'none';
+  }
+  showWelcomeScreen();
+  addressBar.value = '';
+}
+
+// Note Modal Functionality
+function openNoteModal() {
+  // Load note from sessionStorage if exists
+  const savedNote = sessionStorage.getItem('browserNote');
+  if (savedNote && noteTextarea) {
+    noteTextarea.value = savedNote;
+  }
+  noteModal.classList.add('active');
+  if (noteTextarea) {
+    noteTextarea.focus();
+  }
+}
+
+function closeNoteModal() {
+  noteModal.classList.remove('active');
+  // Save note to sessionStorage (temporary)
+  if (noteTextarea) {
+    sessionStorage.setItem('browserNote', noteTextarea.value);
+  }
+}
+
+function handleGoogleSearch() {
+  const query = prompt('Enter your search query:');
+  if (query && query.trim()) {
+    navigateToUrl('https://www.google.com/search?q=' + encodeURIComponent(query));
+  }
+}
+
 // Initialize the browser
 function initBrowser() {
   // Create the "Add Tab" button
@@ -780,13 +878,62 @@ function initBrowser() {
   // Create first tab
   addTab('');
   
-  // Quick links
-  const quickLinks = document.querySelectorAll('.quick-link');
-  quickLinks.forEach(btn => {
-    btn.addEventListener('click', () => {
-      navigateToUrl(btn.dataset.url);
+  // Home button
+  if (homeBtn) {
+    homeBtn.addEventListener('click', goHome);
+  }
+  
+  // Note button
+  if (noteBtn) {
+    noteBtn.addEventListener('click', openNoteModal);
+  }
+  
+  // Note close button
+  if (noteCloseBtn) {
+    noteCloseBtn.addEventListener('click', closeNoteModal);
+  }
+  
+  // Close note modal on outside click
+  if (noteModal) {
+    noteModal.addEventListener('click', (e) => {
+      if (e.target === noteModal) {
+        closeNoteModal();
+      }
+    });
+  }
+  
+  // Google search button
+  if (googleSearchBtn) {
+    googleSearchBtn.addEventListener('click', handleGoogleSearch);
+  }
+  
+  // Home links
+  const homeLinks = document.querySelectorAll('.home-link[data-url]');
+  homeLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const url = link.dataset.url;
+      if (url) {
+        navigateToUrl(url);
+      }
     });
   });
+  
+  // GitHub link (opens in new window)
+  const githubLink = document.getElementById('githubLink');
+  if (githubLink) {
+    githubLink.addEventListener('click', (e) => {
+      // GitHub link opens in new tab/window
+      // Don't prevent default - let it open normally
+    });
+  }
+  
+  // Save note on input (auto-save)
+  if (noteTextarea) {
+    noteTextarea.addEventListener('input', () => {
+      sessionStorage.setItem('browserNote', noteTextarea.value);
+    });
+  }
 }
 
 // Start the browser when page loads
