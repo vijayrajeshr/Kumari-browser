@@ -113,7 +113,15 @@ const DEMO_ARTICLE_HTML = `
     <meta charset="UTF-8">
     <title>The Future of browser interfaces</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #ffffff; /* Force light background */
+        }
         img { max-width: 100%; height: auto; border-radius: 8px; margin: 20px 0; }
         h1 { font-size: 2.5em; margin-bottom: 0.5em; color: #111; }
         .meta { color: #666; font-size: 0.9em; margin-bottom: 2em; border-bottom: 1px solid #eee; padding-bottom: 1em; }
