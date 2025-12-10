@@ -1,9 +1,3 @@
-# Project K - Browser
-
-Prototype :
-
-<img width="1919" height="1010" alt="image" src="https://github.com/user-attachments/assets/7ad70829-6566-4330-b03d-205a3fce7139" />
-<img width="1919" height="1015" alt="image" src="https://github.com/user-attachments/assets/3f7285e9-6399-4a66-a85d-8b0ee1ab7bfe" />
 
 # Project K-Browser 
 
@@ -12,6 +6,11 @@ The Name of the browser is Tentative.
 
 **Live Prototype:** [https://k-browser.vercel.app](https://k-browser.vercel.app)  
 **Documentation:** [Please Read This](https://docs.google.com/document/d/1EbBfPSfY6AwT34qekY-h_qURrskys2LBzFHyebJ4z9A/edit?tab=t.0#heading=h.31f0qmwtmh8w)
+
+**Prototype:** 
+<img width="1919" height="1010" alt="image" src="https://github.com/user-attachments/assets/7ad70829-6566-4330-b03d-205a3fce7139" />
+<img width="1919" height="1015" alt="image" src="https://github.com/user-attachments/assets/3f7285e9-6399-4a66-a85d-8b0ee1ab7bfe" />
+
 
 ---
 
@@ -165,5 +164,6 @@ We value your input. Have ideas or feedback?
 ---
 
 **Project Status**: Active Development (MVP Phase)
+
 
 
